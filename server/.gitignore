@@ -1,0 +1,32 @@
+# dependencies
+node_modules
+
+# build output
+dist
+out
+*.tgz
+
+# environment files (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# editor
+.idea
+.vscode
+
+# caches & build artifacts
+*.tsbuildinfo
+.cache
+.eslintcache
+
+# generated code
+src/generated

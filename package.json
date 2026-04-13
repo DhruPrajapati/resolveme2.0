@@ -1,10 +1,9 @@
 {
   "name": "resolveme",
   "private": true,
-  "workspaces": ["client", "server"],
   "scripts": {
     "dev:client": "bun run --cwd client dev",
     "dev:server": "bun run --cwd server dev",
-    "install:all": "bun install"
+    "install:all": "bun install --cwd client && bun install --cwd server"
   }
 }
