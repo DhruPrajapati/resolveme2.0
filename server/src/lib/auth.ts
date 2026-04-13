@@ -9,6 +9,7 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
+    disableSignUp: true,
   },
   trustedOrigins: [
     process.env.CLIENT_URL || "http://localhost:5173",
