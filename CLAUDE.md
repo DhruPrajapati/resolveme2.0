@@ -83,6 +83,21 @@ router.use(requireAuth, requireAdmin);
 - Roles: `admin` (seeded at deploy) and `agent` (created by admin)
 - Admin has full access; agents handle tickets
 
+## E2E Tests
+
+Always use the **`playwright-e2e-writer`** agent to write Playwright tests. Never write e2e tests inline.
+
+Trigger it whenever:
+- A new page or feature is implemented
+- An existing flow changes (auth, forms, navigation)
+- A new role-gated route is added
+
+```
+use the playwright-e2e-writer agent to write tests for <feature>
+```
+
+The agent knows the test infrastructure (ports, DB, credentials, config location) and will keep its own memory of selectors, page objects, and patterns across conversations.
+
 ## Security
 
 - **`helmet()`** applied globally — sets CSP, X-Frame-Options, HSTS, and other security headers
@@ -91,33 +106,6 @@ router.use(requireAuth, requireAdmin);
 - **Startup validation** — server throws at boot if `DATABASE_URL`, `CLIENT_URL`, `BETTER_AUTH_SECRET`, or `BETTER_AUTH_URL` is missing
 - **`/api/me`** returns `{ id, name, email, role }` only — never expose session token in responses
 - **Password minimum** — 12 characters enforced in seed script and `POST /api/users`
-
-## E2E Testing (Playwright)
-
-Tests live in `e2e/tests/`. Playwright manages two web servers automatically when running tests.
-
-| | Dev | Test |
-|---|---|---|
-| Server port | 3000 | 3001 |
-| Client port | 5173 | 5174 |
-| Database | `resolveme` | `resolveme_test` |
-
-**Env files:** `server/.env.test` and `client/.env.test` (both gitignored).
-
-```bash
-# Set up test database (run once, or after schema changes)
-bun run --cwd e2e setup:db
-
-# Run tests
-bun test:e2e
-
-# Playwright UI mode
-bun test:e2e:ui
-```
-
-**Test admin credentials:** `admin@test.com` / `testAdmin1234!`
-
-The global setup (`e2e/global-setup.ts`) creates `resolveme_test` if absent, runs `prisma migrate deploy`, and seeds the test admin before every test run. Workers are set to `1` — tests run sequentially since they share a live database.
 
 ## Documentation
 
