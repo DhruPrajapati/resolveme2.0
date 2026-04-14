@@ -13,6 +13,10 @@ async function main() {
     throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD must be set in .env");
   }
 
+  if (password.length < 12) {
+    throw new Error("ADMIN_PASSWORD must be at least 12 characters");
+  }
+
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     if (existing.role !== Role.admin) {
