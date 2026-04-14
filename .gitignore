@@ -3,3 +3,12 @@ dist/
 .env
 *.env.local
 .DS_Store
+
+# Playwright
+e2e/test-results/
+e2e/playwright-report/
+e2e/.cache/
+
+# Test env files (contain test credentials)
+server/.env.test
+client/.env.test

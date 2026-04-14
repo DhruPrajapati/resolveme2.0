@@ -35,16 +35,18 @@ app.use(
   })
 );
 
-// --- Rate limiting on auth endpoints ---
-const authRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many requests, please try again later." },
-});
+// --- Rate limiting on auth endpoints (production only) ---
+if (process.env.NODE_ENV === "production") {
+  const authRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many requests, please try again later." },
+  });
 
-app.use("/api/auth", authRateLimiter);
+  app.use("/api/auth", authRateLimiter);
+}
 
 app.all("/api/auth/*splat", toNodeHandler(auth));
 
@@ -54,7 +56,7 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
-
+ 
 app.use("/api/users", usersRouter);
 
 app.listen(PORT, () => {
