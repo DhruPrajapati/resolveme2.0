@@ -4,6 +4,16 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { signIn, useSession } from "../lib/auth-client";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email address"),
@@ -44,65 +54,54 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white p-8 rounded-2xl shadow-md w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">ResolveMe</h1>
-        <p className="text-sm text-gray-500 mb-6">Sign in to your account</p>
+    <div className="min-h-screen flex items-center justify-center bg-muted/40">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-2xl">ResolveMe</CardTitle>
+          <CardDescription>Sign in to your account</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                aria-invalid={!!errors.email}
+                {...register("email")}
+              />
+              {errors.email && (
+                <p className="text-destructive text-xs">{errors.email.message}</p>
+              )}
+            </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              {...register("email")}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${errors.email ? "border-red-500 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"}`}
-              placeholder="you@example.com"
-            />
-            {errors.email && (
-              <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
+            <div className="space-y-1.5">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="••••••••"
+                aria-invalid={!!errors.password}
+                {...register("password")}
+              />
+              {errors.password && (
+                <p className="text-destructive text-xs">{errors.password.message}</p>
+              )}
+            </div>
+
+            {errors.root && (
+              <p className="text-destructive text-sm">{errors.root.message}</p>
             )}
-          </div>
 
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              {...register("password")}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${errors.password ? "border-red-500 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"}`}
-              placeholder="••••••••"
-            />
-            {errors.password && (
-              <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>
-            )}
-          </div>
-
-          {errors.root && (
-            <p className="text-red-500 text-sm">{errors.root.message}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {isSubmitting ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
-      </div>
+            <Button type="submit" disabled={isSubmitting} className="w-full">
+              {isSubmitting ? "Signing in…" : "Sign in"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

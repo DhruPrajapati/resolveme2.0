@@ -11,7 +11,7 @@ An AI-powered ticket management system that receives support emails, auto-classi
 | Frontend | React + TypeScript + Tailwind CSS + React Router (Vite) |
 | Backend | Node.js + Express + TypeScript (Bun runtime) |
 | Database | PostgreSQL + Prisma ORM |
-| Auth | Database sessions (express-session) |
+| Auth | Better Auth (email/password, database sessions) |
 | AI | Anthropic Claude API |
 | Email | SendGrid or Mailgun |
 | Deployment | Docker + cloud provider |
@@ -33,6 +33,34 @@ bun --watch src/index.ts
 # Client (from client/)
 bun run dev
 ```
+
+## Authentication
+
+Auth is handled by **Better Auth** across both server and client.
+
+### Server (`server/src/lib/auth.ts`)
+- Configured with `prismaAdapter` (PostgreSQL)
+- Email/password only — **sign-up is disabled** (`disableSignUp: true`); accounts are seeded
+- Auth routes mounted at `/api/auth/*` via `toNodeHandler(auth)`
+- `trustedOrigins` reads from `CLIENT_URL` env var
+
+### Client (`client/src/lib/auth-client.ts`)
+- `createAuthClient` pointed at `http://localhost:3000`
+- Exports `signIn`, `signOut`, `useSession` for use in components
+
+### Protecting routes (server)
+Use the `requireAuth` middleware (`server/src/middleware/requireAuth.ts`). It calls `auth.api.getSession` and attaches `req.session` and `req.user` (typed via `server/src/types/express.d.ts`). Returns `401` if no valid session.
+
+```ts
+import { requireAuth } from "./middleware/requireAuth.js";
+
+router.get("/protected", requireAuth, (req, res) => {
+  res.json({ user: req.user });
+});
+```
+
+### Protecting routes (client)
+Use `<ProtectedRoute>` (`client/src/components/ProtectedRoute.tsx`) which wraps `useSession` to redirect unauthenticated users to `/login`.
 
 ## Key domain rules
 
