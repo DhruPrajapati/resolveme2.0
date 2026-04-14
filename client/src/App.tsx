@@ -1,21 +1,22 @@
-import { useEffect, useState } from "react";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import Login from "./pages/Login";
+import Home from "./pages/Home";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Layout from "./components/Layout";
 
-function App() {
-  const [status, setStatus] = useState<string | null>(null);
+const router = createBrowserRouter([
+  { path: "/login", element: <Login /> },
+  {
+    element: <ProtectedRoute />,
+    children: [
+      {
+        element: <Layout />,
+        children: [{ path: "/", element: <Home /> }],
+      },
+    ],
+  },
+]);
 
-  useEffect(() => {
-    fetch("http://localhost:3000/health")
-      .then((res) => res.json())
-      .then((data) => setStatus(data.status))
-      .catch(() => setStatus("unreachable"));
-  }, []);
-
-  return (
-    <div>
-      <h1>ResolveMe</h1>
-      <p>Server status: {status ?? "checking..."}</p>
-    </div>
-  );
+export default function App() {
+  return <RouterProvider router={router} />;
 }
-
-export default App;
