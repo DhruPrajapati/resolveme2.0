@@ -1,1 +1,1 @@
-export { createUserSchema, type CreateUserFields } from "./schemas/user.js";
+export { createUserSchema, type CreateUserFields, editUserSchema, type EditUserFields } from "./schemas/user.js";

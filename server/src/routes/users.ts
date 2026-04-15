@@ -2,7 +2,7 @@ import { Router } from "express";
 import { hashPassword } from "@better-auth/utils/password";
 import { z } from "zod";
 import { Role } from "@prisma/client";
-import { createUserSchema } from "@resolveme/core";
+import { createUserSchema, editUserSchema } from "@resolveme/core";
 import prisma from "../db.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
@@ -100,6 +100,51 @@ router.delete("/:id", async (req, res) => {
 
   await prisma.user.delete({ where: { id } });
   res.status(204).send();
+});
+
+// PATCH /api/users/:id — update name, email, and optionally password
+router.patch("/:id", async (req, res) => {
+  const { id } = req.params;
+
+  const result = editUserSchema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: z.flattenError(result.error).fieldErrors });
+    return;
+  }
+
+  const existing = await prisma.user.findUnique({ where: { id } });
+  if (!existing) {
+    res.status(404).json({ error: "User not found." });
+    return;
+  }
+
+  const { name, email, password } = result.data;
+
+  if (email !== existing.email) {
+    const conflict = await prisma.user.findUnique({ where: { email } });
+    if (conflict) {
+      res.status(409).json({ error: "A user with that email already exists." });
+      return;
+    }
+  }
+
+  const now = new Date();
+
+  const updated = await prisma.user.update({
+    where: { id },
+    data: { name, email, updatedAt: now },
+    select: { id: true, name: true, email: true, role: true, createdAt: true },
+  });
+
+  if (password) {
+    const hashedPassword = await hashPassword(password);
+    await prisma.account.updateMany({
+      where: { userId: id, providerId: "credential" },
+      data: { password: hashedPassword, updatedAt: now },
+    });
+  }
+
+  res.json(updated);
 });
 
 export default router;

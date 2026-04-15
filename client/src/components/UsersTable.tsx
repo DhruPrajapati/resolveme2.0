@@ -5,10 +5,15 @@ import { useSession } from "@/lib/auth-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PencilIcon, Trash2Icon } from "lucide-react";
 import api from "@/lib/api";
 import type { User } from "@/types/user";
 
-export function UsersTable() {
+interface Props {
+  onEdit: (user: User) => void;
+}
+
+export function UsersTable({ onEdit }: Props) {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -50,7 +55,7 @@ export function UsersTable() {
                 <th className="px-4 py-3 font-medium">Email</th>
                 <th className="px-4 py-3 font-medium">Role</th>
                 <th className="px-4 py-3 font-medium">Created</th>
-                <th className="px-4 py-3" />
+                <th className="px-4 py-3 font-medium text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -89,20 +94,27 @@ export function UsersTable() {
                     <td className="px-4 py-3 text-muted-foreground">
                       {new Date(user.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      {user.id !== session?.user.id && (
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          aria-label={`Edit ${user.name}`}
+                          onClick={() => onEdit(user)}
+                        >
+                          <PencilIcon className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Delete ${user.name}`}
+                          className={`text-destructive hover:text-destructive hover:bg-destructive/10 ${user.id === session?.user.id ? "invisible" : ""}`}
                           disabled={deleteMutation.isPending && deleteMutation.variables === user.id}
                           onClick={() => deleteMutation.mutate(user.id)}
                         >
-                          {deleteMutation.isPending && deleteMutation.variables === user.id
-                            ? "Deleting…"
-                            : "Delete"}
+                          <Trash2Icon className="h-4 w-4" />
                         </Button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))

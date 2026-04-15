@@ -119,13 +119,13 @@ describe('Users page', () => {
       // Wait for data to load
       await screen.findByText('Admin User');
 
-      // The admin row (id === session user id) must NOT have a Delete button
+      // The admin row (id === session user id) has the Delete button hidden (invisible)
       const adminRow = screen.getByText('Admin User').closest('tr')!;
-      expect(within(adminRow).queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
+      expect(within(adminRow).getByRole('button', { name: /delete admin user/i })).toHaveClass('invisible');
 
-      // Other rows should have a Delete button
+      // Other rows have a visible Delete button
       const agentRow = screen.getByText('Jane Smith').closest('tr')!;
-      expect(within(agentRow).getByRole('button', { name: /delete/i })).toBeInTheDocument();
+      expect(within(agentRow).getByRole('button', { name: /delete jane smith/i })).not.toHaveClass('invisible');
     });
   });
 
@@ -291,6 +291,88 @@ describe('Users page', () => {
       await user.click(screen.getByRole('button', { name: /create user/i }));
 
       await screen.findByText('String must contain at least 12 character(s)');
+    });
+  });
+
+  describe('Edit user', () => {
+    it('shows a pencil edit button on every row', async () => {
+      renderUsers();
+
+      await screen.findByText('Jane Smith');
+
+      const janeRow = screen.getByText('Jane Smith').closest('tr')!;
+      expect(within(janeRow).getByRole('button', { name: /edit jane smith/i })).toBeInTheDocument();
+
+      const adminRow = screen.getByText('Admin User').closest('tr')!;
+      expect(within(adminRow).getByRole('button', { name: /edit admin user/i })).toBeInTheDocument();
+    });
+
+    it('opens the edit dialog with the user data pre-populated when pencil is clicked', async () => {
+      const user = userEvent.setup();
+      renderUsers();
+
+      await screen.findByText('Jane Smith');
+
+      await user.click(
+        within(screen.getByText('Jane Smith').closest('tr')!).getByRole('button', { name: /edit jane smith/i }),
+      );
+
+      expect(screen.getByText('Edit user')).toBeInTheDocument();
+      expect(screen.getByLabelText(/name/i)).toHaveValue('Jane Smith');
+      expect(screen.getByLabelText(/email/i)).toHaveValue('jane@example.com');
+    });
+
+    it('updates the row in-place after a successful edit', async () => {
+      const updatedJane = { ...USERS[1], name: 'Jane Updated', email: 'janeupdated@example.com' };
+
+      server.use(
+        http.patch('http://localhost:3001/api/users/agent-1', () =>
+          HttpResponse.json(updatedJane),
+        ),
+      );
+
+      const user = userEvent.setup();
+      renderUsers();
+
+      await screen.findByText('Jane Smith');
+
+      await user.click(
+        within(screen.getByText('Jane Smith').closest('tr')!).getByRole('button', { name: /edit jane smith/i }),
+      );
+
+      const nameInput = screen.getByLabelText(/name/i);
+      await user.clear(nameInput);
+      await user.type(nameInput, 'Jane Updated');
+
+      await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+      // Dialog closes after success
+      await waitFor(() =>
+        expect(screen.queryByText('Edit user')).not.toBeInTheDocument(),
+      );
+
+      // Updated name appears in the table
+      expect(await screen.findByText('Jane Updated')).toBeInTheDocument();
+      expect(screen.queryByText('Jane Smith')).not.toBeInTheDocument();
+    });
+
+    it('closes the edit dialog when the X button is clicked', async () => {
+      const user = userEvent.setup();
+      renderUsers();
+
+      await screen.findByText('Jane Smith');
+
+      await user.click(
+        within(screen.getByText('Jane Smith').closest('tr')!).getByRole('button', { name: /edit jane smith/i }),
+      );
+
+      expect(screen.getByText('Edit user')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /close/i }));
+
+      await waitFor(() =>
+        expect(screen.queryByText('Edit user')).not.toBeInTheDocument(),
+      );
     });
   });
 
