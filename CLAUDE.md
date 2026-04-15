@@ -8,7 +8,7 @@ An AI-powered ticket management system that receives support emails, auto-classi
 
 | Layer | Technology |
 |---|---|
-| Frontend | React + TypeScript + Tailwind CSS + React Router (Vite) |
+| Frontend | React + TypeScript + Tailwind CSS + React Router (Vite) + Axios + TanStack Query |
 | Backend | Node.js + Express + TypeScript (Bun runtime) |
 | Database | PostgreSQL + Prisma ORM |
 | Auth | Better Auth (email/password, database sessions) |
@@ -106,6 +106,22 @@ The agent knows the test infrastructure (ports, DB, credentials, config location
 - **Startup validation** — server throws at boot if `DATABASE_URL`, `CLIENT_URL`, `BETTER_AUTH_SECRET`, or `BETTER_AUTH_URL` is missing
 - **`/api/me`** returns `{ id, name, email, role }` only — never expose session token in responses
 - **Password minimum** — 12 characters enforced in seed script and `POST /api/users`
+
+## Data Fetching
+
+All client-side API calls use **Axios** and **TanStack Query** (`@tanstack/react-query`).
+
+- Create a page/feature-local `axios` instance with `baseURL` and `withCredentials: true`:
+  ```ts
+  const api = axios.create({
+    baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:3000",
+    withCredentials: true,
+  });
+  ```
+- Use `useQuery` for reads and `useMutation` for writes (create/update/delete).
+- On mutation success, update the cache directly with `queryClient.setQueryData` — avoid unnecessary refetches.
+- Error handling: cast to `AxiosError<{ error?: string }>` to extract the server error message.
+- The `QueryClientProvider` is mounted in `client/src/main.tsx` — do not add another one.
 
 ## Documentation
 

@@ -1,14 +1,19 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import axios, { AxiosError } from "axios";
 import { useSession } from "../lib/auth-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:3000",
+  withCredentials: true,
+});
 
 interface User {
   id: string;
@@ -29,11 +34,9 @@ type CreateUserFields = z.infer<typeof createUserSchema>;
 
 export default function Users() {
   const { data: session } = useSession();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const {
     register,
@@ -46,68 +49,49 @@ export default function Users() {
     defaultValues: { role: "agent" },
   });
 
-  async function fetchUsers() {
-    setLoadError(null);
-    try {
-      const res = await fetch(`${API_URL}/api/users`, { credentials: "include" });
-      if (!res.ok) throw new Error();
-      setUsers(await res.json());
-    } catch {
-      setLoadError("Could not load users. Please try again.");
-    }
-  }
+  const { data: users = [], isError: loadError } = useQuery({
+    queryKey: ["users"],
+    queryFn: async () => {
+      const { data } = await api.get<User[]>("/api/users");
+      return data;
+    },
+  });
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  const createMutation = useMutation({
+    mutationFn: (data: CreateUserFields) =>
+      api.post<User>("/api/users", data).then((r) => r.data),
+    onSuccess: (created) => {
+      queryClient.setQueryData<User[]>(["users"], (prev = []) => [...prev, created]);
+      reset();
+      setShowForm(false);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/users/${id}`),
+    onSuccess: (_data, id) => {
+      queryClient.setQueryData<User[]>(["users"], (prev = []) =>
+        prev.filter((u) => u.id !== id)
+      );
+      setDeleteError(null);
+    },
+    onError: (err) => {
+      const body = (err as AxiosError<{ error?: string }>).response?.data;
+      setDeleteError(body?.error ?? "Failed to delete user.");
+    },
+  });
 
   const onSubmit = async (data: CreateUserFields) => {
-    const res = await fetch(`${API_URL}/api/users`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-
-    if (res.status === 409) {
-      setError("email", { message: "A user with that email already exists." });
-      return;
-    }
-
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      const msg =
-        body.error && typeof body.error === "string"
-          ? body.error
-          : "Failed to create user.";
-      setError("root", { message: msg });
-      return;
-    }
-
-    const created: User = await res.json();
-    setUsers((prev) => [...prev, created]);
-    reset();
-    setShowForm(false);
-  };
-
-  const handleDelete = async (id: string) => {
-    setDeleteError(null);
-    setDeletingId(id);
     try {
-      const res = await fetch(`${API_URL}/api/users/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        setDeleteError(body.error ?? "Failed to delete user.");
-        return;
+      await createMutation.mutateAsync(data);
+    } catch (err) {
+      const status = (err as AxiosError).response?.status;
+      const body = (err as AxiosError<{ error?: string }>).response?.data;
+      if (status === 409) {
+        setError("email", { message: "A user with that email already exists." });
+      } else {
+        setError("root", { message: body?.error ?? "Failed to create user." });
       }
-      setUsers((prev) => prev.filter((u) => u.id !== id));
-    } catch {
-      setDeleteError("Failed to delete user.");
-    } finally {
-      setDeletingId(null);
     }
   };
 
@@ -207,7 +191,7 @@ export default function Users() {
       )}
 
       {loadError ? (
-        <p className="text-destructive text-sm">{loadError}</p>
+        <p className="text-destructive text-sm">Could not load users. Please try again.</p>
       ) : (
         <Card>
           <CardContent className="p-0">
@@ -253,10 +237,12 @@ export default function Users() {
                             variant="ghost"
                             size="sm"
                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            disabled={deletingId === user.id}
-                            onClick={() => handleDelete(user.id)}
+                            disabled={deleteMutation.isPending && deleteMutation.variables === user.id}
+                            onClick={() => deleteMutation.mutate(user.id)}
                           >
-                            {deletingId === user.id ? "Deleting…" : "Delete"}
+                            {deleteMutation.isPending && deleteMutation.variables === user.id
+                              ? "Deleting…"
+                              : "Delete"}
                           </Button>
                         )}
                       </td>
