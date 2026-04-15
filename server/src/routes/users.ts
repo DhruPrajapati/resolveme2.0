@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { hashPassword } from "@better-auth/utils/password";
 import { z } from "zod";
+import { Role } from "@prisma/client";
+import { createUserSchema } from "@resolveme/core";
 import prisma from "../db.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
@@ -26,12 +28,6 @@ router.get("/", async (_req, res) => {
   res.json(users);
 });
 
-const createUserSchema = z.object({
-  name: z.string().min(1).max(100),
-  email: z.string().email(),
-  password: z.string().min(12),
-  role: z.enum(["agent", "admin"]).default("agent"),
-});
 
 // POST /api/users — create a new user account
 router.post("/", async (req, res) => {
@@ -41,7 +37,8 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  const { name, email, password, role } = result.data;
+  const { name, email, password } = result.data;
+  const role = Role.agent;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {

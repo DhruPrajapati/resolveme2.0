@@ -130,18 +130,20 @@ describe('Users page', () => {
   });
 
   describe('Add user form', () => {
-    it('toggles the form when "Add user" / "Cancel" is clicked', async () => {
+    it('opens the modal when "Add user" is clicked and closes it via the X button', async () => {
       const user = userEvent.setup();
       renderUsers();
 
-      // Form is hidden initially
+      // Modal is hidden initially
       expect(screen.queryByText('New user')).not.toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: /add user/i }));
       expect(screen.getByText('New user')).toBeInTheDocument();
 
-      await user.click(screen.getByRole('button', { name: /cancel/i }));
-      expect(screen.queryByText('New user')).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /close/i }));
+      await waitFor(() =>
+        expect(screen.queryByText('New user')).not.toBeInTheDocument(),
+      );
     });
 
     it('shows validation errors when the form is submitted empty', async () => {
@@ -151,9 +153,9 @@ describe('Users page', () => {
       await user.click(screen.getByRole('button', { name: /add user/i }));
       await user.click(screen.getByRole('button', { name: /create user/i }));
 
-      await screen.findByText('Name is required');
+      await screen.findByText('Name must be at least 3 characters');
       expect(screen.getByText('Enter a valid email')).toBeInTheDocument();
-      expect(screen.getByText('Password must be at least 12 characters')).toBeInTheDocument();
+      expect(screen.getByText('Password must be at least 8 characters')).toBeInTheDocument();
     });
 
     it('creates a user and closes the form on success', async () => {
@@ -209,7 +211,7 @@ describe('Users page', () => {
       await screen.findByText('A user with that email already exists.');
     });
 
-    it('shows a generic root error for non-409 API failures', async () => {
+    it('shows a generic root error for non-409 string API failures', async () => {
       server.use(
         http.post('http://localhost:3001/api/users', () =>
           HttpResponse.json({ error: 'Internal server error' }, { status: 500 }),
@@ -220,13 +222,36 @@ describe('Users page', () => {
       renderUsers();
 
       await user.click(screen.getByRole('button', { name: /add user/i }));
-      await user.type(screen.getByLabelText(/name/i), 'Test');
+      await user.type(screen.getByLabelText(/name/i), 'Test User');
       await user.type(screen.getByLabelText(/email/i), 'test@example.com');
       await user.type(screen.getByLabelText(/password/i), 'securepassword123');
 
       await user.click(screen.getByRole('button', { name: /create user/i }));
 
       await screen.findByText('Internal server error');
+    });
+
+    it('maps server field errors onto the correct inputs', async () => {
+      server.use(
+        http.post('http://localhost:3001/api/users', () =>
+          HttpResponse.json(
+            { error: { password: ['String must contain at least 12 character(s)'] } },
+            { status: 400 },
+          ),
+        ),
+      );
+
+      const user = userEvent.setup();
+      renderUsers();
+
+      await user.click(screen.getByRole('button', { name: /add user/i }));
+      await user.type(screen.getByLabelText(/name/i), 'Test User');
+      await user.type(screen.getByLabelText(/email/i), 'test@example.com');
+      await user.type(screen.getByLabelText(/password/i), 'validpassword1');
+
+      await user.click(screen.getByRole('button', { name: /create user/i }));
+
+      await screen.findByText('String must contain at least 12 character(s)');
     });
   });
 

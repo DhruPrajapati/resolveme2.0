@@ -11,6 +11,7 @@
     "db:seed": "bun prisma/seed.ts"
   },
   "dependencies": {
+    "@resolveme/core": "workspace:*",
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "7",
     "@prisma/client-runtime-utils": "7.7.0",

@@ -1,7 +1,7 @@
 {
   "name": "resolveme",
   "private": true,
-  "workspaces": ["client", "server", "e2e"],
+  "workspaces": ["client", "server", "e2e", "core"],
   "scripts": {
     "dev:client": "bun run --cwd client dev",
     "dev:server": "bun run --cwd server dev",
