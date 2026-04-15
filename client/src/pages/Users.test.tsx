@@ -130,17 +130,56 @@ describe('Users page', () => {
   });
 
   describe('Add user form', () => {
-    it('opens the modal when "Add user" is clicked and closes it via the X button', async () => {
+    it('is hidden by default', () => {
+      renderUsers();
+      expect(screen.queryByText('New user')).not.toBeInTheDocument();
+    });
+
+    it('opens when "Add user" is clicked', async () => {
       const user = userEvent.setup();
       renderUsers();
 
-      // Modal is hidden initially
-      expect(screen.queryByText('New user')).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /add user/i }));
+
+      expect(screen.getByText('New user')).toBeInTheDocument();
+    });
+
+    it('closes when the X button is clicked', async () => {
+      const user = userEvent.setup();
+      renderUsers();
+
+      await user.click(screen.getByRole('button', { name: /add user/i }));
+      await user.click(screen.getByRole('button', { name: /close/i }));
+
+      await waitFor(() =>
+        expect(screen.queryByText('New user')).not.toBeInTheDocument(),
+      );
+    });
+
+    it('closes when Escape is pressed', async () => {
+      const user = userEvent.setup();
+      renderUsers();
 
       await user.click(screen.getByRole('button', { name: /add user/i }));
       expect(screen.getByText('New user')).toBeInTheDocument();
 
-      await user.click(screen.getByRole('button', { name: /close/i }));
+      await user.keyboard('{Escape}');
+
+      await waitFor(() =>
+        expect(screen.queryByText('New user')).not.toBeInTheDocument(),
+      );
+    });
+
+    it('closes when clicking the backdrop', async () => {
+      const user = userEvent.setup();
+      renderUsers();
+
+      await user.click(screen.getByRole('button', { name: /add user/i }));
+      expect(screen.getByText('New user')).toBeInTheDocument();
+
+      const backdrop = document.querySelector('[data-slot="dialog-overlay"]')!;
+      await user.click(backdrop);
+
       await waitFor(() =>
         expect(screen.queryByText('New user')).not.toBeInTheDocument(),
       );

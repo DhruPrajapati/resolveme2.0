@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { CreateUserDialog } from "@/components/CreateUserDialog";
+import { CreateUserDialog } from "./CreateUserDialog";
 import { UsersTable } from "@/components/UsersTable";
 
 export default function Users() {
