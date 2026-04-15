@@ -21,9 +21,16 @@ export default defineConfig({
   },
 
   projects: [
+    // Run auth setup (login + save storageState) before any test project.
+    {
+      name: "setup",
+      testMatch: "**/auth.setup.ts",
+    },
+    // Main test project — depends on setup so storage state files exist.
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      dependencies: ["setup"],
     },
   ],
 

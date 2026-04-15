@@ -1,0 +1,1 @@
+- [Auth test patterns and selectors](project_auth_tests.md) — selectors, validation messages, storage state paths, RBAC routing, agent provisioning, loading-state intercept pattern
