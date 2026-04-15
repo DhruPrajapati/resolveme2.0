@@ -83,6 +83,53 @@ router.use(requireAuth, requireAdmin);
 - Roles: `admin` (seeded at deploy) and `agent` (created by admin)
 - Admin has full access; agents handle tickets
 
+## Component Tests
+
+Component tests live alongside their page/component file as `*.test.tsx`.
+
+### Stack
+
+| Tool | Purpose |
+|---|---|
+| Vitest | Test runner (configured in `client/vite.config.ts`) |
+| React Testing Library | Render and query components |
+| `@testing-library/user-event` | Simulate user interactions |
+| `@testing-library/jest-dom` | DOM matchers (`toBeInTheDocument`, etc.) |
+| MSW (`msw/node`) | Intercept Axios calls at the network level |
+
+### Running tests
+
+```bash
+# From client/
+bun run test                # run once, silent
+bun run test:components     # run once, verbose (each test name listed)
+bun run test:watch          # watch mode
+```
+
+### Key conventions
+
+- **Environment** — Vitest uses `jsdom`. `client/.env.test` sets `VITE_API_URL=http://localhost:3001`. MSW handlers must use that base URL.
+- **Query wrapper** — Never add a second `QueryClientProvider` in tests. Use `renderWithQuery` from `client/src/test/renderWithQuery.tsx` instead:
+  ```ts
+  import { renderWithQuery } from '../test/renderWithQuery';
+  renderWithQuery(<MyPage />);
+  ```
+  It creates a fresh `QueryClient` per test with `retry: false`.
+- **API mocking** — Use MSW `setupServer` / `http` / `HttpResponse`. Always call `server.listen({ onUnhandledRequest: 'error' })` in `beforeAll`, `server.resetHandlers()` in `afterEach`, and `server.close()` in `afterAll`.
+- **`useSession` mock** — The component calls `const { data: session } = useSession()`, so the mock must return the wrapper object:
+  ```ts
+  vi.mock('../lib/auth-client', () => ({
+    useSession: () => ({
+      data: { user: { id: 'admin-1', role: 'admin', ... } },
+    }),
+  }));
+  ```
+- **What to test** — loading state (skeletons), error state, empty state, happy-path data rendering, form validation, mutation success, mutation errors (per status code), and role-gated UI elements.
+
+### Setup file
+
+`client/src/test/setup.ts` imports `@testing-library/jest-dom` and is registered in `vite.config.ts` under `test.setupFiles`.
+
 ## E2E Tests
 
 Always use the **`playwright-e2e-writer`** agent to write Playwright tests. Never write e2e tests inline.
