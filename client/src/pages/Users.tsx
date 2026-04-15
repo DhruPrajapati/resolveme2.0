@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "../lib/auth-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -49,7 +50,7 @@ export default function Users() {
     defaultValues: { role: "agent" },
   });
 
-  const { data: users = [], isError: loadError } = useQuery({
+  const { data: users = [], isPending: usersLoading, isError: loadError } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
       const { data } = await api.get<User[]>("/api/users");
@@ -206,7 +207,17 @@ export default function Users() {
                 </tr>
               </thead>
               <tbody>
-                {users.length === 0 ? (
+                {usersLoading ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-40" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
+                      <td className="px-4 py-3" />
+                    </tr>
+                  ))
+                ) : users.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
                       No users found.
