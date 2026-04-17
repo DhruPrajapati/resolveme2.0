@@ -113,19 +113,18 @@ describe('Users page', () => {
       expect(within(adminRow).getByText('admin')).toBeInTheDocument();
     });
 
-    it('hides the Delete button for the currently logged-in user', async () => {
+    it('hides the Delete button for admin users and the logged-in user', async () => {
       renderUsers();
 
-      // Wait for data to load
       await screen.findByText('Admin User');
 
-      // The admin row (id === session user id) has the Delete button hidden (invisible)
+      // Admin row has no delete button (admin cannot be deleted, and is also self)
       const adminRow = screen.getByText('Admin User').closest('tr')!;
-      expect(within(adminRow).getByRole('button', { name: /delete admin user/i })).toHaveClass('invisible');
+      expect(within(adminRow).queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
 
-      // Other rows have a visible Delete button
+      // Agent row has a visible delete button
       const agentRow = screen.getByText('Jane Smith').closest('tr')!;
-      expect(within(agentRow).getByRole('button', { name: /delete jane smith/i })).not.toHaveClass('invisible');
+      expect(within(agentRow).getByRole('button', { name: /delete jane smith/i })).toBeInTheDocument();
     });
   });
 
@@ -377,7 +376,42 @@ describe('Users page', () => {
   });
 
   describe('Delete user', () => {
-    it('removes the user row from the table after a successful delete', async () => {
+    it('opens a confirmation dialog with the user name and email when delete is clicked', async () => {
+      const user = userEvent.setup();
+      renderUsers();
+
+      await screen.findByText('Jane Smith');
+
+      await user.click(
+        within(screen.getByText('Jane Smith').closest('tr')!).getByRole('button', { name: /delete jane smith/i }),
+      );
+
+      const dialog = screen.getByRole('alertdialog');
+      expect(dialog).toBeInTheDocument();
+      expect(within(dialog).getByText(/delete jane smith/i)).toBeInTheDocument();
+      expect(within(dialog).getByText(/jane@example\.com/i)).toBeInTheDocument();
+    });
+
+    it('does not delete when Cancel is clicked', async () => {
+      const user = userEvent.setup();
+      renderUsers();
+
+      await screen.findByText('Jane Smith');
+
+      await user.click(
+        within(screen.getByText('Jane Smith').closest('tr')!).getByRole('button', { name: /delete jane smith/i }),
+      );
+
+      await user.click(screen.getByRole('button', { name: /cancel/i }));
+
+      // Dialog closes and Jane's row is still there
+      await waitFor(() =>
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument(),
+      );
+      expect(screen.getByText('Jane Smith')).toBeInTheDocument();
+    });
+
+    it('removes the user row from the table after confirming delete', async () => {
       server.use(
         http.delete('http://localhost:3001/api/users/:id', () =>
           new HttpResponse(null, { status: 204 }),
@@ -387,12 +421,13 @@ describe('Users page', () => {
       const user = userEvent.setup();
       renderUsers();
 
-      // Wait for Jane's row to appear
       await screen.findByText('Jane Smith');
 
       await user.click(
-        within(screen.getByText('Jane Smith').closest('tr')!).getByRole('button', { name: /delete/i }),
+        within(screen.getByText('Jane Smith').closest('tr')!).getByRole('button', { name: /delete jane smith/i }),
       );
+
+      await user.click(screen.getByRole('button', { name: /^delete$/i }));
 
       await waitFor(() =>
         expect(screen.queryByText('Jane Smith')).not.toBeInTheDocument(),
@@ -412,8 +447,10 @@ describe('Users page', () => {
       await screen.findByText('Jane Smith');
 
       await user.click(
-        within(screen.getByText('Jane Smith').closest('tr')!).getByRole('button', { name: /delete/i }),
+        within(screen.getByText('Jane Smith').closest('tr')!).getByRole('button', { name: /delete jane smith/i }),
       );
+
+      await user.click(screen.getByRole('button', { name: /^delete$/i }));
 
       await screen.findByText('Cannot delete the last admin.');
     });

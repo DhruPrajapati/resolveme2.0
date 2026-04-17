@@ -12,9 +12,10 @@ const router = Router();
 // All user management routes require authentication + admin role
 router.use(requireAuth, requireAdmin);
 
-// GET /api/users — list all users (safe fields only)
+// GET /api/users — list all non-deleted users (safe fields only)
 router.get("/", async (_req, res) => {
   const users = await prisma.user.findMany({
+    where: { deletedAt: null },
     select: {
       id: true,
       name: true,
@@ -82,23 +83,30 @@ router.post("/", async (req, res) => {
   res.status(201).json(user);
 });
 
-// DELETE /api/users/:id — remove a user
+// DELETE /api/users/:id — soft-delete a user (admins cannot be deleted)
 router.delete("/:id", async (req, res) => {
   const { id } = req.params;
 
-  // Prevent admin from deleting themselves
   if (id === req.user!.id) {
     res.status(400).json({ error: "You cannot delete your own account." });
     return;
   }
 
-  const user = await prisma.user.findUnique({ where: { id } });
+  const user = await prisma.user.findUnique({ where: { id, deletedAt: null } });
   if (!user) {
     res.status(404).json({ error: "User not found." });
     return;
   }
 
-  await prisma.user.delete({ where: { id } });
+  if (user.role === Role.admin) {
+    res.status(403).json({ error: "Admin accounts cannot be deleted." });
+    return;
+  }
+
+  await prisma.$transaction([
+    prisma.session.deleteMany({ where: { userId: id } }),
+    prisma.user.update({ where: { id }, data: { deletedAt: new Date() } }),
+  ]);
   res.status(204).send();
 });
 
@@ -112,7 +120,7 @@ router.patch("/:id", async (req, res) => {
     return;
   }
 
-  const existing = await prisma.user.findUnique({ where: { id } });
+  const existing = await prisma.user.findUnique({ where: { id, deletedAt: null } });
   if (!existing) {
     res.status(404).json({ error: "User not found." });
     return;

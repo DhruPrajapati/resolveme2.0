@@ -1,7 +1,9 @@
+import type { Role } from "@resolveme/core";
+
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "agent";
+  role: Role;
   createdAt: string;
 }
