@@ -1,1 +1,2 @@
 - [Auth test patterns and selectors](project_auth_tests.md) — selectors, validation messages, storage state paths, RBAC routing, agent provisioning, loading-state intercept pattern
+- [Users page e2e patterns](project_users_page_patterns.md) — form IDs, API statuses, delete button rules, row selector strategy for /user

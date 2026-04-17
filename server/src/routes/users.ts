@@ -41,7 +41,7 @@ router.post("/", async (req, res) => {
   const { name, email, password } = result.data;
   const role = Role.agent;
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await prisma.user.findFirst({ where: { email, deletedAt: null } });
   if (existing) {
     res.status(409).json({ error: "A user with that email already exists." });
     return;
@@ -103,9 +103,17 @@ router.delete("/:id", async (req, res) => {
     return;
   }
 
+  const now = new Date();
   await prisma.$transaction([
     prisma.session.deleteMany({ where: { userId: id } }),
-    prisma.user.update({ where: { id }, data: { deletedAt: new Date() } }),
+    prisma.user.update({
+      where: { id },
+      data: {
+        deletedAt: now,
+        // Free the email so the address can be reused for a new account
+        email: `deleted.${now.getTime()}.${user.email}`,
+      },
+    }),
   ]);
   res.status(204).send();
 });
