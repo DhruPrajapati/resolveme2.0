@@ -5,6 +5,8 @@ import rateLimit from "express-rate-limit";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth.js";
 import usersRouter from "./routes/users.js";
+import webhooksRouter from "./routes/webhooks.js";
+import ticketsRouter from "./routes/tickets.js";
 
 
 // --- Startup validation ---
@@ -13,6 +15,7 @@ const requiredEnvVars = [
   "CLIENT_URL",
   "BETTER_AUTH_SECRET",
   "BETTER_AUTH_URL",
+  "WEBHOOK_SECRET",
 ];
 
 for (const key of requiredEnvVars) {
@@ -58,6 +61,8 @@ app.get("/health", (_req, res) => {
 
  
 app.use("/api/users", usersRouter);
+app.use("/api/webhooks", webhooksRouter);
+app.use("/api/tickets", ticketsRouter);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
