@@ -1,4 +1,16 @@
 import { defineConfig, devices } from "@playwright/test";
+import { readFileSync } from "fs";
+import path from "path";
+
+// Load server/.env.test so WEBHOOK_SECRET and PORT are available to test files
+const envFile = readFileSync(path.resolve(__dirname, "../server/.env.test"), "utf-8");
+for (const line of envFile.split("\n")) {
+  const match = line.match(/^([^#=\s]+)\s*=\s*"?([^"]*)"?\s*$/);
+  if (match) process.env[match[1]] ??= match[2];
+}
+
+// Expose API_BASE_URL so test files can read it from process.env
+process.env.API_BASE_URL = `http://localhost:${process.env.PORT ?? "3001"}`;
 
 export default defineConfig({
   testDir: "./tests",
