@@ -197,14 +197,33 @@ bun run test:watch          # watch mode
 
 `client/src/test/setup.ts` imports `@testing-library/jest-dom` and is registered in `vite.config.ts` under `test.setupFiles`.
 
+## Testing Strategy
+
+**Default to component tests. Use e2e only when a real browser, real session, or real DB is essential.**
+
+### Use component tests for
+- Loading, error, and empty states
+- Data rendering (rows, badges, formatted values)
+- Form validation and submission (success + each error code)
+- Mutation feedback (optimistic updates, error messages)
+- Role-gated UI elements (show/hide based on mocked session)
+- Any behaviour that can be verified by mocking the API with MSW
+
+### Use e2e tests only for
+- Auth flows — sign in, sign out, session persistence
+- Route protection — `<ProtectedRoute>` and `<AdminRoute>` redirects
+- Role-based NavBar link visibility (requires a real session)
+- Cross-page navigation (clicking a link and landing on the correct page)
+- Ordering/sorting that depends on real DB inserts with real timestamps
+- Webhook or server-side flows that cannot be replicated with MSW alone
+
+If a test can be written as a component test, write it as a component test. Do not duplicate coverage in e2e just because e2e is available.
+
 ## E2E Tests
 
 Always use the **`playwright-e2e-writer`** agent to write Playwright tests. Never write e2e tests inline.
 
-Trigger it whenever:
-- A new page or feature is implemented
-- An existing flow changes (auth, forms, navigation)
-- A new role-gated route is added
+Trigger it only for the cases listed under "Use e2e tests only for" above.
 
 ```
 use the playwright-e2e-writer agent to write tests for <feature>

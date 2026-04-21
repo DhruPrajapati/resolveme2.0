@@ -4,6 +4,8 @@ export {
   TicketCategory,
   inboundEmailSchema,
   updateTicketSchema,
+  type TicketStatusType,
+  type TicketCategoryType,
   type InboundEmailFields,
   type UpdateTicketFields,
 } from "./schemas/ticket.js";

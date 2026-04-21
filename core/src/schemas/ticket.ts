@@ -21,5 +21,7 @@ export const updateTicketSchema = z.object({
   assignedToId: z.string().optional(),
 });
 
+export type TicketStatusType = z.infer<typeof TicketStatus>;
+export type TicketCategoryType = z.infer<typeof TicketCategory>;
 export type InboundEmailFields = z.infer<typeof inboundEmailSchema>;
 export type UpdateTicketFields = z.infer<typeof updateTicketSchema>;
