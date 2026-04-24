@@ -4,8 +4,12 @@ export {
   TicketCategory,
   inboundEmailSchema,
   updateTicketSchema,
+  ticketSortBySchema,
+  ticketSortOrderSchema,
   type TicketStatusType,
   type TicketCategoryType,
+  type TicketSortBy,
+  type TicketSortOrder,
   type InboundEmailFields,
   type UpdateTicketFields,
 } from "./schemas/ticket.js";

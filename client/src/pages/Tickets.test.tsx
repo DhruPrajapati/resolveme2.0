@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { screen, within, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { renderWithQuery } from '../test/renderWithQuery';
@@ -181,6 +182,77 @@ describe('Tickets page', () => {
     it('renders the page heading', async () => {
       renderTickets();
       expect(screen.getByRole('heading', { name: 'Tickets' })).toBeInTheDocument();
+    });
+  });
+
+  describe('sorting', () => {
+    it('shows a down-arrow on the Received header by default (createdAt desc)', async () => {
+      renderTickets();
+      await screen.findByText('Bob Smith');
+
+      const receivedTh = screen.getByRole('columnheader', { name: /received/i });
+      expect(receivedTh.querySelector('.lucide-arrow-down')).not.toBeNull();
+    });
+
+    it('shows neutral sort icons on non-active columns by default', async () => {
+      renderTickets();
+      await screen.findByText('Bob Smith');
+
+      const subjectTh = screen.getByRole('columnheader', { name: /subject/i });
+      expect(subjectTh.querySelector('.lucide-arrow-up-down')).not.toBeNull();
+    });
+
+    it('clicking Subject header sends sortBy=subject&sortOrder=asc (first click = asc for string columns)', async () => {
+      const user = userEvent.setup();
+      let capturedParams: URLSearchParams | null = null;
+
+      server.use(
+        http.get('http://localhost:3001/api/tickets', ({ request }) => {
+          capturedParams = new URL(request.url).searchParams;
+          return HttpResponse.json(TICKETS);
+        }),
+      );
+
+      renderTickets();
+      await screen.findByText('Bob Smith');
+
+      await user.click(screen.getByRole('columnheader', { name: /subject/i }));
+
+      await waitFor(() => {
+        expect(capturedParams?.get('sortBy')).toBe('subject');
+        expect(capturedParams?.get('sortOrder')).toBe('asc');
+      });
+
+      const subjectTh = screen.getByRole('columnheader', { name: /subject/i });
+      expect(subjectTh.querySelector('.lucide-arrow-up')).not.toBeNull();
+    });
+
+    it('clicking Subject header twice sends sortOrder=desc and shows down arrow', async () => {
+      const user = userEvent.setup();
+      let capturedParams: URLSearchParams | null = null;
+
+      server.use(
+        http.get('http://localhost:3001/api/tickets', ({ request }) => {
+          capturedParams = new URL(request.url).searchParams;
+          return HttpResponse.json(TICKETS);
+        }),
+      );
+
+      renderTickets();
+      await screen.findByText('Bob Smith');
+
+      const subjectTh = screen.getByRole('columnheader', { name: /subject/i });
+      await user.click(subjectTh); // first click → asc
+      await waitFor(() => expect(capturedParams?.get('sortBy')).toBe('subject'));
+
+      await user.click(subjectTh); // second click → desc
+
+      await waitFor(() => {
+        expect(capturedParams?.get('sortBy')).toBe('subject');
+        expect(capturedParams?.get('sortOrder')).toBe('desc');
+      });
+
+      expect(subjectTh.querySelector('.lucide-arrow-down')).not.toBeNull();
     });
   });
 });

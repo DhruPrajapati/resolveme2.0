@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { updateTicketSchema, TicketStatus } from "@resolveme/core";
+import { updateTicketSchema, TicketStatus, ticketSortBySchema, ticketSortOrderSchema } from "@resolveme/core";
 import prisma from "../db.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 
@@ -16,9 +16,12 @@ router.get("/", async (req, res) => {
     return;
   }
 
+  const sortBy = ticketSortBySchema.catch("createdAt").parse(req.query.sortBy);
+  const sortOrder = ticketSortOrderSchema.catch("desc").parse(req.query.sortOrder);
+
   const tickets = await prisma.ticket.findMany({
     where: statusResult ? { status: statusResult.data } : undefined,
-    orderBy: { createdAt: "desc" },
+    orderBy: { [sortBy]: sortOrder },
     select: {
       id: true,
       subject: true,
