@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   useReactTable,
@@ -7,12 +7,12 @@ import {
   type SortingState,
   type ColumnDef,
 } from "@tanstack/react-table";
-import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { ArrowUp, ArrowDown, ArrowUpDown, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import api from "@/lib/api";
 import type { Ticket } from "@/types/ticket";
-import type { TicketSortBy, TicketSortOrder } from "@resolveme/core";
+import type { TicketSortBy, TicketSortOrder, TicketStatusType, TicketCategoryType } from "@resolveme/core";
 
 const statusStyles: Record<Ticket["status"], string> = {
   open: "bg-blue-100 text-blue-700",
@@ -67,18 +67,49 @@ const columns: ColumnDef<Ticket>[] = [
   },
 ];
 
+const statusOptions: { label: string; value: TicketStatusType | "" }[] = [
+  { label: "All statuses", value: "" },
+  { label: "Open", value: "open" },
+  { label: "Resolved", value: "resolved" },
+  { label: "Closed", value: "closed" },
+];
+
+const categoryOptions: { label: string; value: TicketCategoryType | "" }[] = [
+  { label: "All categories", value: "" },
+  { label: "General question", value: "general_question" },
+  { label: "Technical question", value: "technical_question" },
+  { label: "Refund request", value: "refund_request" },
+];
+
 export function TicketsTable() {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "createdAt", desc: true },
   ]);
+  const [statusFilter, setStatusFilter] = useState<TicketStatusType | "">("");
+  const [categoryFilter, setCategoryFilter] = useState<TicketCategoryType | "">("");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   const sortBy = (sorting[0]?.id ?? "createdAt") as TicketSortBy;
   const sortOrder: TicketSortOrder = sorting[0]?.desc === false ? "asc" : "desc";
 
   const { data: tickets = [], isPending: isLoading, isError: loadError } = useQuery({
-    queryKey: ["tickets", sortBy, sortOrder],
+    queryKey: ["tickets", sortBy, sortOrder, statusFilter, categoryFilter, search],
     queryFn: () =>
-      api.get<Ticket[]>("/api/tickets", { params: { sortBy, sortOrder } }).then((r) => r.data),
+      api.get<Ticket[]>("/api/tickets", {
+        params: {
+          sortBy,
+          sortOrder,
+          ...(statusFilter ? { status: statusFilter } : {}),
+          ...(categoryFilter ? { category: categoryFilter } : {}),
+          ...(search ? { search } : {}),
+        },
+      }).then((r) => r.data),
   });
 
   const table = useReactTable({
@@ -96,7 +127,46 @@ export function TicketsTable() {
   }
 
   return (
-    <Card>
+    <div className="space-y-3">
+      <div className="flex gap-3">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="search"
+            placeholder="Search ticket"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="rounded-md border border-input bg-background pl-8 pr-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring w-64"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as TicketStatusType | "")}
+          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          {statusOptions.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value as TicketCategoryType | "")}
+          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          {categoryOptions.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        {(statusFilter || categoryFilter || searchInput) && (
+          <button
+            onClick={() => { setStatusFilter(""); setCategoryFilter(""); setSearchInput(""); }}
+            className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2"
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
+      <Card>
       <CardContent className="p-0">
         <table className="w-full text-sm">
           <thead>
@@ -157,5 +227,6 @@ export function TicketsTable() {
         </table>
       </CardContent>
     </Card>
+    </div>
   );
 }

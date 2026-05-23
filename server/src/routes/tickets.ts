@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { updateTicketSchema, TicketStatus, ticketSortBySchema, ticketSortOrderSchema } from "@resolveme/core";
+import { updateTicketSchema, TicketStatus, TicketCategory, ticketSortBySchema, ticketSortOrderSchema } from "@resolveme/core";
 import prisma from "../db.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 
@@ -16,11 +16,33 @@ router.get("/", async (req, res) => {
     return;
   }
 
+  const categoryParam = req.query.category as string | undefined;
+  const categoryResult = categoryParam ? TicketCategory.safeParse(categoryParam) : null;
+
+  if (categoryResult && !categoryResult.success) {
+    res.status(400).json({ error: "Invalid category value" });
+    return;
+  }
+
+  const search = (req.query.search as string | undefined)?.trim() || undefined;
+
   const sortBy = ticketSortBySchema.catch("createdAt").parse(req.query.sortBy);
   const sortOrder = ticketSortOrderSchema.catch("desc").parse(req.query.sortOrder);
 
+  const where = {
+    ...(statusResult ? { status: statusResult.data } : {}),
+    ...(categoryResult ? { category: categoryResult.data } : {}),
+    ...(search ? {
+      OR: [
+        { subject: { contains: search, mode: "insensitive" as const } },
+        { fromName: { contains: search, mode: "insensitive" as const } },
+        { fromEmail: { contains: search, mode: "insensitive" as const } },
+      ],
+    } : {}),
+  };
+
   const tickets = await prisma.ticket.findMany({
-    where: statusResult ? { status: statusResult.data } : undefined,
+    where: Object.keys(where).length > 0 ? where : undefined,
     orderBy: { [sortBy]: sortOrder },
     select: {
       id: true,
