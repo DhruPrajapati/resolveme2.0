@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { updateTicketSchema, TicketStatus, TicketCategory, ticketSortBySchema, ticketSortOrderSchema } from "@resolveme/core";
+import { updateTicketSchema, TicketStatus, TicketCategory, ticketSortBySchema, ticketSortOrderSchema, ticketPageSchema, ticketPageSizeSchema } from "@resolveme/core";
 import prisma from "../db.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 
@@ -28,6 +28,8 @@ router.get("/", async (req, res) => {
 
   const sortBy = ticketSortBySchema.catch("createdAt").parse(req.query.sortBy);
   const sortOrder = ticketSortOrderSchema.catch("desc").parse(req.query.sortOrder);
+  const page = ticketPageSchema.parse(req.query.page);
+  const pageSize = ticketPageSizeSchema.parse(req.query.pageSize);
 
   const where = {
     ...(statusResult ? { status: statusResult.data } : {}),
@@ -41,22 +43,29 @@ router.get("/", async (req, res) => {
     } : {}),
   };
 
-  const tickets = await prisma.ticket.findMany({
-    where: Object.keys(where).length > 0 ? where : undefined,
-    orderBy: { [sortBy]: sortOrder },
-    select: {
-      id: true,
-      subject: true,
-      fromName: true,
-      fromEmail: true,
-      status: true,
-      category: true,
-      createdAt: true,
-      assignedTo: { select: { id: true, name: true } },
-    },
-  });
+  const resolvedWhere = Object.keys(where).length > 0 ? where : undefined;
 
-  res.json(tickets);
+  const [tickets, total] = await Promise.all([
+    prisma.ticket.findMany({
+      where: resolvedWhere,
+      orderBy: { [sortBy]: sortOrder },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        subject: true,
+        fromName: true,
+        fromEmail: true,
+        status: true,
+        category: true,
+        createdAt: true,
+        assignedTo: { select: { id: true, name: true } },
+      },
+    }),
+    prisma.ticket.count({ where: resolvedWhere }),
+  ]);
+
+  res.json({ data: tickets, total, page, pageSize });
 });
 
 router.get("/:id", async (req, res) => {

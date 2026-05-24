@@ -29,6 +29,8 @@ export const ticketSortBySchema = z.enum([
   "createdAt",
 ]);
 export const ticketSortOrderSchema = z.enum(["asc", "desc"]);
+export const ticketPageSchema = z.coerce.number().int().positive().catch(1);
+export const ticketPageSizeSchema = z.coerce.number().int().positive().max(100).catch(20);
 
 export type TicketStatusType = z.infer<typeof TicketStatus>;
 export type TicketCategoryType = z.infer<typeof TicketCategory>;

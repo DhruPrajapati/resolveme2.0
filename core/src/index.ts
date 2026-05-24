@@ -6,6 +6,8 @@ export {
   updateTicketSchema,
   ticketSortBySchema,
   ticketSortOrderSchema,
+  ticketPageSchema,
+  ticketPageSizeSchema,
   type TicketStatusType,
   type TicketCategoryType,
   type TicketSortBy,

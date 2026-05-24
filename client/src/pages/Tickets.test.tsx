@@ -43,12 +43,19 @@ const TICKETS = [
   },
 ];
 
+const makePage = (tickets: typeof TICKETS, total?: number) => ({
+  data: tickets,
+  total: total ?? tickets.length,
+  page: 1,
+  pageSize: 10,
+});
+
 // ---------------------------------------------------------------------------
 // MSW server
 // ---------------------------------------------------------------------------
 
 const server = setupServer(
-  http.get('http://localhost:3001/api/tickets', () => HttpResponse.json(TICKETS)),
+  http.get('http://localhost:3001/api/tickets', () => HttpResponse.json(makePage(TICKETS))),
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
@@ -95,7 +102,9 @@ describe('Tickets page', () => {
   describe('empty state', () => {
     it('shows "No tickets yet." when the list is empty', async () => {
       server.use(
-        http.get('http://localhost:3001/api/tickets', () => HttpResponse.json([])),
+        http.get('http://localhost:3001/api/tickets', () =>
+          HttpResponse.json(makePage([])),
+        ),
       );
 
       renderTickets();
@@ -163,9 +172,7 @@ describe('Tickets page', () => {
     it('renders the "closed" status badge with gray styling', async () => {
       server.use(
         http.get('http://localhost:3001/api/tickets', () =>
-          HttpResponse.json([
-            { ...TICKETS[0], status: 'closed' },
-          ]),
+          HttpResponse.json(makePage([{ ...TICKETS[0], status: 'closed' }])),
         ),
       );
 
@@ -209,7 +216,7 @@ describe('Tickets page', () => {
       server.use(
         http.get('http://localhost:3001/api/tickets', ({ request }) => {
           capturedParams = new URL(request.url).searchParams;
-          return HttpResponse.json(TICKETS);
+          return HttpResponse.json(makePage(TICKETS));
         }),
       );
 
@@ -234,7 +241,7 @@ describe('Tickets page', () => {
       server.use(
         http.get('http://localhost:3001/api/tickets', ({ request }) => {
           capturedParams = new URL(request.url).searchParams;
-          return HttpResponse.json(TICKETS);
+          return HttpResponse.json(makePage(TICKETS));
         }),
       );
 

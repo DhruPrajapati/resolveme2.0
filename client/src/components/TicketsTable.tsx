@@ -7,12 +7,14 @@ import {
   type SortingState,
   type ColumnDef,
 } from "@tanstack/react-table";
-import { ArrowUp, ArrowDown, ArrowUpDown, Search } from "lucide-react";
+import { ArrowUp, ArrowDown, ArrowUpDown, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import api from "@/lib/api";
 import type { Ticket } from "@/types/ticket";
 import type { TicketSortBy, TicketSortOrder, TicketStatusType, TicketCategoryType } from "@resolveme/core";
+
+const PAGE_SIZE = 10;
 
 const statusStyles: Record<Ticket["status"], string> = {
   open: "bg-blue-100 text-blue-700",
@@ -89,28 +91,39 @@ export function TicketsTable() {
   const [categoryFilter, setCategoryFilter] = useState<TicketCategoryType | "">("");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput.trim()), 300);
     return () => clearTimeout(t);
   }, [searchInput]);
 
+  useEffect(() => { setPage(1); }, [statusFilter, categoryFilter, search, sorting]);
+
   const sortBy = (sorting[0]?.id ?? "createdAt") as TicketSortBy;
   const sortOrder: TicketSortOrder = sorting[0]?.desc === false ? "asc" : "desc";
 
-  const { data: tickets = [], isPending: isLoading, isError: loadError } = useQuery({
-    queryKey: ["tickets", sortBy, sortOrder, statusFilter, categoryFilter, search],
+  const { data, isPending: isLoading, isError: loadError } = useQuery({
+    queryKey: ["tickets", sortBy, sortOrder, statusFilter, categoryFilter, search, page],
     queryFn: () =>
-      api.get<Ticket[]>("/api/tickets", {
+      api.get<{ data: Ticket[]; total: number; page: number; pageSize: number }>("/api/tickets", {
         params: {
           sortBy,
           sortOrder,
+          page,
+          pageSize: PAGE_SIZE,
           ...(statusFilter ? { status: statusFilter } : {}),
           ...(categoryFilter ? { category: categoryFilter } : {}),
           ...(search ? { search } : {}),
         },
       }).then((r) => r.data),
   });
+
+  const tickets = data?.data ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const to = Math.min(page * PAGE_SIZE, total);
 
   const table = useReactTable({
     data: tickets,
@@ -167,66 +180,92 @@ export function TicketsTable() {
         )}
       </div>
       <Card>
-      <CardContent className="p-0">
-        <table className="w-full text-sm">
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="border-b text-left text-muted-foreground">
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className="px-6 py-3 font-semibold cursor-pointer select-none hover:text-foreground"
-                    onClick={header.column.getToggleSortingHandler()}
-                  >
-                    <span className="inline-flex items-center gap-1">
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      {header.column.getIsSorted() === "asc" && (
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      )}
-                      {header.column.getIsSorted() === "desc" && (
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      )}
-                      {!header.column.getIsSorted() && (
-                        <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
-                      )}
-                    </span>
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {isLoading ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <tr key={i} className="border-b last:border-0">
-                  <td className="px-6 py-3"><Skeleton className="h-4 w-40" /></td>
-                  <td className="px-6 py-3"><Skeleton className="h-4 w-32" /></td>
-                  <td className="px-6 py-3"><Skeleton className="h-5 w-24 rounded-full" /></td>
-                  <td className="px-6 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
-                  <td className="px-6 py-3"><Skeleton className="h-4 w-20" /></td>
-                </tr>
-              ))
-            ) : table.getRowModel().rows.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length} className="px-4 py-6 text-center text-muted-foreground">
-                  No tickets yet.
-                </td>
-              </tr>
-            ) : (
-              table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="border-b last:border-0 hover:bg-muted/40">
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-6 py-3">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
+        <CardContent className="p-0">
+          <table className="w-full text-sm">
+            <thead>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id} className="border-b text-left text-muted-foreground">
+                  {headerGroup.headers.map((header) => (
+                    <th
+                      key={header.id}
+                      className="px-6 py-3 font-semibold cursor-pointer select-none hover:text-foreground"
+                      onClick={header.column.getToggleSortingHandler()}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.column.getIsSorted() === "asc" && (
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        )}
+                        {header.column.getIsSorted() === "desc" && (
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        )}
+                        {!header.column.getIsSorted() && (
+                          <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+                        )}
+                      </span>
+                    </th>
                   ))}
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </CardContent>
-    </Card>
+              ))}
+            </thead>
+            <tbody>
+              {isLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={i} className="border-b last:border-0">
+                    <td className="px-6 py-3"><Skeleton className="h-4 w-40" /></td>
+                    <td className="px-6 py-3"><Skeleton className="h-4 w-32" /></td>
+                    <td className="px-6 py-3"><Skeleton className="h-5 w-24 rounded-full" /></td>
+                    <td className="px-6 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                    <td className="px-6 py-3"><Skeleton className="h-4 w-20" /></td>
+                  </tr>
+                ))
+              ) : table.getRowModel().rows.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-4 py-6 text-center text-muted-foreground">
+                    No tickets yet.
+                  </td>
+                </tr>
+              ) : (
+                table.getRowModel().rows.map((row) => (
+                  <tr key={row.id} className="border-b last:border-0 hover:bg-muted/40">
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-6 py-3">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+          <div className="flex items-center justify-between px-6 py-3 border-t text-sm text-muted-foreground">
+            <span>
+              {total === 0 ? "No tickets" : `Showing ${from}–${to} of ${total}`}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage((p) => p - 1)}
+                disabled={page <= 1}
+                className="inline-flex items-center justify-center rounded-md p-1 hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="px-2">
+                {page} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page >= totalPages}
+                className="inline-flex items-center justify-center rounded-md p-1 hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                aria-label="Next page"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
