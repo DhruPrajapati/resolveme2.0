@@ -18,7 +18,7 @@ export const inboundEmailSchema = z.object({
 export const updateTicketSchema = z.object({
   status: TicketStatus.optional(),
   category: TicketCategory.optional(),
-  assignedToId: z.string().optional(),
+  assignedToId: z.string().nullish(),
 });
 
 export const ticketSortBySchema = z.enum([

@@ -1,10 +1,11 @@
 import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import api from "@/lib/api";
 import type { TicketDetail } from "@/types/ticket";
+import type { AxiosError } from "axios";
 
 const statusStyles = {
   open: "bg-blue-100 text-blue-700",
@@ -21,13 +22,32 @@ function MetaRow({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
+type Agent = { id: string; name: string };
+
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
 
   const { data: ticket, isPending, isError } = useQuery({
     queryKey: ["ticket", id],
     queryFn: () => api.get<TicketDetail>(`/api/tickets/${id}`).then((r) => r.data),
     enabled: !!id,
+  });
+
+  const { data: agents = [] } = useQuery({
+    queryKey: ["agents"],
+    queryFn: () => api.get<Agent[]>("/api/agents").then((r) => r.data),
+  });
+
+  const { mutate: assign, isPending: isAssigning } = useMutation({
+    mutationFn: (assignedToId: string | null) =>
+      api.patch<TicketDetail>(`/api/tickets/${id}`, { assignedToId }).then((r) => r.data),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["ticket", id], updated);
+    },
+    onError: (err: AxiosError<{ error?: string }>) => {
+      console.error("Failed to assign ticket", err.response?.data?.error);
+    },
   });
 
   return (
@@ -82,11 +102,22 @@ export default function TicketDetailPage() {
                   ? ticket.category.replace(/_/g, " ")
                   : <span className="text-muted-foreground">—</span>}
               </MetaRow>
-              {ticket.assignedTo && (
-                <MetaRow label="Assigned to">
-                  {ticket.assignedTo.name}
-                </MetaRow>
-              )}
+              <MetaRow label="Assigned to">
+                <select
+                  value={ticket.assignedTo?.id ?? ""}
+                  disabled={isAssigning}
+                  onChange={(e) => assign(e.target.value || null)}
+                  className="rounded-md border border-input bg-background px-2 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 w-48"
+                >
+                  <option value="">Unassigned</option>
+                  {agents.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+                {isAssigning && (
+                  <span className="ml-2 text-xs text-muted-foreground">Saving…</span>
+                )}
+              </MetaRow>
             </dl>
 
             <div>

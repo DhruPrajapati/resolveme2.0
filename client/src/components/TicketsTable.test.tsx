@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { renderWithQuery } from '../test/renderWithQuery';
@@ -52,7 +53,12 @@ beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-const renderTable = () => renderWithQuery(<TicketsTable />);
+const renderTable = () =>
+  renderWithQuery(
+    <MemoryRouter>
+      <TicketsTable />
+    </MemoryRouter>,
+  );
 
 // ---------------------------------------------------------------------------
 // Tests

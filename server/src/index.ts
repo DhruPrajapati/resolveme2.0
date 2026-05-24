@@ -7,6 +7,7 @@ import { auth } from "./lib/auth.js";
 import usersRouter from "./routes/users.js";
 import webhooksRouter from "./routes/webhooks.js";
 import ticketsRouter from "./routes/tickets.js";
+import agentsRouter from "./routes/agents.js";
 
 
 // --- Startup validation ---
@@ -61,6 +62,7 @@ app.get("/health", (_req, res) => {
 
  
 app.use("/api/users", usersRouter);
+app.use("/api/agents", agentsRouter);
 app.use("/api/webhooks", webhooksRouter);
 app.use("/api/tickets", ticketsRouter);
 

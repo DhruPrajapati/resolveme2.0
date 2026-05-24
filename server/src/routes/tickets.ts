@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { updateTicketSchema, TicketStatus, TicketCategory, ticketSortBySchema, ticketSortOrderSchema, ticketPageSchema, ticketPageSizeSchema } from "@resolveme/core";
 import prisma from "../db.js";
 import { requireAuth } from "../middleware/requireAuth.js";
@@ -97,8 +98,20 @@ router.patch("/:id", async (req, res) => {
 
   const result = updateTicketSchema.safeParse(req.body);
   if (!result.success) {
-    res.status(400).json({ error: result.error.flatten().fieldErrors });
+    res.status(400).json({ error: z.flattenError(result.error).fieldErrors });
     return;
+  }
+
+  const { assignedToId } = result.data;
+  if (assignedToId) {
+    const user = await prisma.user.findUnique({
+      where: { id: assignedToId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!user) {
+      res.status(422).json({ error: "Assigned user not found" });
+      return;
+    }
   }
 
   const existing = await prisma.ticket.findUnique({ where: { id } });

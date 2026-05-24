@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest';
 import { screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { renderWithQuery } from '../test/renderWithQuery';
@@ -62,7 +63,12 @@ beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-const renderTickets = () => renderWithQuery(<Tickets />);
+const renderTickets = () =>
+  renderWithQuery(
+    <MemoryRouter>
+      <Tickets />
+    </MemoryRouter>,
+  );
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -189,6 +195,13 @@ describe('Tickets page', () => {
     it('renders the page heading', async () => {
       renderTickets();
       expect(screen.getByRole('heading', { name: 'Tickets' })).toBeInTheDocument();
+    });
+
+    it('renders the subject as a link to /tickets/:id', async () => {
+      renderTickets();
+
+      const link = await screen.findByRole('link', { name: 'App crashes on login' });
+      expect(link).toHaveAttribute('href', '/tickets/2');
     });
   });
 
