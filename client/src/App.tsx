@@ -3,6 +3,7 @@ import Login from "./pages/Login";
 import Home from "./pages/Home";
 import Users from "./pages/Users";
 import Tickets from "./pages/Tickets";
+import TicketDetail from "./pages/TicketDetail";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import Layout from "./components/Layout";
@@ -17,6 +18,7 @@ const router = createBrowserRouter([
         children: [
           { path: "/", element: <Home /> },
           { path: "/tickets", element: <Tickets /> },
+          { path: "/tickets/:id", element: <TicketDetail /> },
           {
             element: <AdminRoute />,
             children: [{ path: "/user", element: <Users /> }],

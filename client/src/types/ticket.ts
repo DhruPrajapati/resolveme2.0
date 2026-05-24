@@ -10,3 +10,9 @@ export interface Ticket {
   createdAt: string;
   assignedTo: { id: string; name: string } | null;
 }
+
+export interface TicketDetail extends Ticket {
+  body: string;
+  bodyHtml: string | null;
+  updatedAt: string;
+}

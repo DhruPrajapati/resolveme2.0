@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   useReactTable,
@@ -26,8 +27,10 @@ const columns: ColumnDef<Ticket>[] = [
   {
     accessorKey: "subject",
     header: "Subject",
-    cell: ({ getValue }) => (
-      <span className="font-semibold">{getValue<string>()}</span>
+    cell: ({ row }) => (
+      <Link to={`/tickets/${row.original.id}`} className="link">
+        {row.original.subject}
+      </Link>
     ),
   },
   {
