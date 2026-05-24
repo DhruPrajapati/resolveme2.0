@@ -1,28 +1,37 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import api from "@/lib/api";
 import type { TicketDetail } from "@/types/ticket";
+import type { UpdateTicketFields, TicketStatusType, TicketCategoryType } from "@resolveme/core";
 import type { AxiosError } from "axios";
 
-const statusStyles = {
-  open: "bg-blue-100 text-blue-700",
-  resolved: "bg-green-100 text-green-700",
-  closed: "bg-gray-100 text-gray-600",
-} as const;
+type Agent = { id: string; name: string };
 
-function MetaRow({ label, children }: { label: string; children: React.ReactNode }) {
+const statusOptions: { label: string; value: TicketStatusType }[] = [
+  { label: "Open", value: "open" },
+  { label: "Resolved", value: "resolved" },
+  { label: "Closed", value: "closed" },
+];
+
+const categoryOptions: { label: string; value: TicketCategoryType }[] = [
+  { label: "General question", value: "general_question" },
+  { label: "Technical question", value: "technical_question" },
+  { label: "Refund request", value: "refund_request" },
+];
+
+const selectClass =
+  "w-full rounded-md border border-input bg-background px-2 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50";
+
+function SidebarField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
-      <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
-      <dd className="text-sm">{children}</dd>
+    <div className="space-y-1">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
+      {children}
     </div>
   );
 }
-
-type Agent = { id: string; name: string };
 
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -39,14 +48,14 @@ export default function TicketDetailPage() {
     queryFn: () => api.get<Agent[]>("/api/agents").then((r) => r.data),
   });
 
-  const { mutate: assign, isPending: isAssigning } = useMutation({
-    mutationFn: (assignedToId: string | null) =>
-      api.patch<TicketDetail>(`/api/tickets/${id}`, { assignedToId }).then((r) => r.data),
+  const { mutate: patchTicket, isPending: isSaving } = useMutation({
+    mutationFn: (patch: UpdateTicketFields) =>
+      api.patch<TicketDetail>(`/api/tickets/${id}`, patch).then((r) => r.data),
     onSuccess: (updated) => {
       queryClient.setQueryData(["ticket", id], updated);
     },
     onError: (err: AxiosError<{ error?: string }>) => {
-      console.error("Failed to assign ticket", err.response?.data?.error);
+      console.error("Failed to update ticket", err.response?.data?.error);
     },
   });
 
@@ -61,17 +70,20 @@ export default function TicketDetailPage() {
       </Link>
 
       {isPending && (
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-2/3" />
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Skeleton className="h-4 w-48" />
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-24 w-full mt-2" />
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <Skeleton className="h-6 w-2/3" />
+          <Skeleton className="h-4 w-64" />
+          <div className="grid grid-cols-[1fr_220px] gap-6 pt-2">
+            <div className="space-y-3">
+              <Skeleton className="h-32 w-full" />
+            </div>
+            <div className="space-y-4">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          </div>
+        </div>
       )}
 
       {isError && (
@@ -79,55 +91,76 @@ export default function TicketDetailPage() {
       )}
 
       {ticket && (
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl">{ticket.subject}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <dl className="space-y-3">
-              <MetaRow label="From">
-                <span className="font-medium">{ticket.fromName}</span>
-                <span className="text-muted-foreground ml-1">&lt;{ticket.fromEmail}&gt;</span>
-              </MetaRow>
-              <MetaRow label="Received">
-                {new Date(ticket.createdAt).toLocaleString()}
-              </MetaRow>
-              <MetaRow label="Status">
-                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[ticket.status]}`}>
-                  {ticket.status}
-                </span>
-              </MetaRow>
-              <MetaRow label="Category">
-                {ticket.category
-                  ? ticket.category.replace(/_/g, " ")
-                  : <span className="text-muted-foreground">—</span>}
-              </MetaRow>
-              <MetaRow label="Assigned to">
-                <select
-                  value={ticket.assignedTo?.id ?? ""}
-                  disabled={isAssigning}
-                  onChange={(e) => assign(e.target.value || null)}
-                  className="rounded-md border border-input bg-background px-2 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 w-48"
-                >
-                  <option value="">Unassigned</option>
-                  {agents.map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </select>
-                {isAssigning && (
-                  <span className="ml-2 text-xs text-muted-foreground">Saving…</span>
-                )}
-              </MetaRow>
-            </dl>
+        <div className="space-y-4">
+          <div>
+            <h1 className="text-xl font-semibold">{ticket.subject}</h1>
+            <div className="flex gap-3 text-sm text-muted-foreground mt-1">
+              <span>
+                <span className="font-medium text-foreground">{ticket.fromName}</span>
+                <span className="ml-1">&lt;{ticket.fromEmail}&gt;</span>
+              </span>
+              <span>·</span>
+              <span>{new Date(ticket.createdAt).toLocaleString()}</span>
+            </div>
+          </div>
 
+          <div className="grid grid-cols-[1fr_220px] gap-6 pt-2">
             <div>
               <p className="text-sm font-medium text-muted-foreground mb-2">Message</p>
               <div className="rounded-md border bg-muted/30 p-4 text-sm whitespace-pre-wrap font-mono leading-relaxed">
                 {ticket.body}
               </div>
             </div>
-          </CardContent>
-        </Card>
+
+            <div className="space-y-4 border-l pl-6">
+              <SidebarField label="Status">
+                <select
+                  aria-label="Status"
+                  value={ticket.status}
+                  disabled={isSaving}
+                  onChange={(e) => patchTicket({ status: e.target.value as TicketStatusType })}
+                  className={selectClass}
+                >
+                  {statusOptions.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </SidebarField>
+
+              <SidebarField label="Category">
+                <select
+                  aria-label="Category"
+                  value={ticket.category ?? ""}
+                  disabled={isSaving}
+                  onChange={(e) =>
+                    patchTicket({ category: (e.target.value as TicketCategoryType) || undefined })
+                  }
+                  className={selectClass}
+                >
+                  <option value="">Uncategorised</option>
+                  {categoryOptions.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </SidebarField>
+
+              <SidebarField label="Assigned to">
+                <select
+                  aria-label="Assigned to"
+                  value={ticket.assignedTo?.id ?? ""}
+                  disabled={isSaving}
+                  onChange={(e) => patchTicket({ assignedToId: e.target.value || null })}
+                  className={selectClass}
+                >
+                  <option value="">Unassigned</option>
+                  {agents.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </SidebarField>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

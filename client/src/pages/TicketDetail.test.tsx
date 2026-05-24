@@ -63,6 +63,11 @@ const renderDetail = (id = '47') =>
     </MemoryRouter>,
   );
 
+// helpers
+const statusSelect = () => screen.getByRole<HTMLSelectElement>('combobox', { name: 'Status' });
+const categorySelect = () => screen.getByRole<HTMLSelectElement>('combobox', { name: 'Category' });
+const assignSelect = () => screen.getByRole<HTMLSelectElement>('combobox', { name: 'Assigned to' });
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -109,30 +114,6 @@ describe('TicketDetail page', () => {
       expect(screen.getByText(/<alex@example.com>/)).toBeInTheDocument();
     });
 
-    it('renders the status badge with correct styling', async () => {
-      renderDetail();
-      const badge = await screen.findByText('open');
-      expect(badge.className).toMatch(/bg-blue-100/);
-      expect(badge.className).toMatch(/text-blue-700/);
-    });
-
-    it('renders the category with underscores replaced by spaces', async () => {
-      renderDetail();
-      await screen.findByText('technical question');
-    });
-
-    it('shows "—" for category when null', async () => {
-      server.use(
-        http.get('http://localhost:3001/api/tickets/47', () =>
-          HttpResponse.json({ ...TICKET, category: null }),
-        ),
-      );
-
-      renderDetail();
-
-      await screen.findByText('—');
-    });
-
     it('renders the message body', async () => {
       renderDetail();
       await screen.findByText('Getting redirect_uri_mismatch when logging in.');
@@ -147,11 +128,95 @@ describe('TicketDetail page', () => {
     });
   });
 
+  describe('status', () => {
+    it('pre-selects the current status', async () => {
+      renderDetail();
+      await screen.findByRole('combobox', { name: 'Status' });
+      expect(statusSelect().value).toBe('open');
+    });
+
+    it('sends PATCH with the new status when changed', async () => {
+      const user = userEvent.setup();
+      let patchBody: unknown;
+
+      server.use(
+        http.patch('http://localhost:3001/api/tickets/47', async ({ request }) => {
+          patchBody = await request.json();
+          return HttpResponse.json({ ...TICKET, status: 'resolved' });
+        }),
+      );
+
+      renderDetail();
+      await screen.findByRole('combobox', { name: 'Status' });
+      await user.selectOptions(statusSelect(), 'resolved');
+
+      await waitFor(() => expect(patchBody).toEqual({ status: 'resolved' }));
+    });
+
+  });
+
+  describe('category', () => {
+    it('pre-selects the current category', async () => {
+      renderDetail();
+      await screen.findByRole('combobox', { name: 'Category' });
+      expect(categorySelect().value).toBe('technical_question');
+    });
+
+    it('shows empty value when category is null', async () => {
+      server.use(
+        http.get('http://localhost:3001/api/tickets/47', () =>
+          HttpResponse.json({ ...TICKET, category: null }),
+        ),
+      );
+
+      renderDetail();
+      await screen.findByRole('combobox', { name: 'Category' });
+      expect(categorySelect().value).toBe('');
+    });
+
+    it('sends PATCH with the new category when changed', async () => {
+      const user = userEvent.setup();
+      let patchBody: unknown;
+
+      server.use(
+        http.patch('http://localhost:3001/api/tickets/47', async ({ request }) => {
+          patchBody = await request.json();
+          return HttpResponse.json({ ...TICKET, category: 'refund_request' });
+        }),
+      );
+
+      renderDetail();
+      await screen.findByRole('combobox', { name: 'Category' });
+      await user.selectOptions(categorySelect(), 'refund_request');
+
+      await waitFor(() => expect(patchBody).toEqual({ category: 'refund_request' }));
+    });
+
+    it('sends PATCH with undefined when Uncategorised is selected', async () => {
+      const user = userEvent.setup();
+      let patchBody: unknown;
+
+      server.use(
+        http.patch('http://localhost:3001/api/tickets/47', async ({ request }) => {
+          patchBody = await request.json();
+          return HttpResponse.json({ ...TICKET, category: null });
+        }),
+      );
+
+      renderDetail();
+      await screen.findByRole('combobox', { name: 'Category' });
+      await user.selectOptions(categorySelect(), '');
+
+      await waitFor(() => expect(patchBody).toEqual({}));
+    });
+
+  });
+
   describe('assignment', () => {
     it('shows "Unassigned" selected when assignedTo is null', async () => {
       renderDetail();
-      const select = await screen.findByRole<HTMLSelectElement>('combobox');
-      expect(select.value).toBe('');
+      await screen.findByRole('combobox', { name: 'Assigned to' });
+      expect(assignSelect().value).toBe('');
     });
 
     it('pre-selects the current agent when ticket is already assigned', async () => {
@@ -162,14 +227,13 @@ describe('TicketDetail page', () => {
       );
 
       renderDetail();
-
-      const select = await screen.findByRole<HTMLSelectElement>('combobox');
-      await waitFor(() => expect(select.value).toBe('agent-1'));
+      await screen.findByRole('combobox', { name: 'Assigned to' });
+      await waitFor(() => expect(assignSelect().value).toBe('agent-1'));
     });
 
-    it('lists all users (admins and agents) plus the Unassigned option in the dropdown', async () => {
+    it('lists all users (admins and agents) plus Unassigned in the dropdown', async () => {
       renderDetail();
-      await screen.findByRole('combobox');
+      await screen.findByRole('combobox', { name: 'Assigned to' });
 
       expect(screen.getByRole('option', { name: 'Unassigned' })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'Admin' })).toBeInTheDocument();
@@ -189,12 +253,10 @@ describe('TicketDetail page', () => {
       );
 
       renderDetail();
-      const select = await screen.findByRole('combobox');
-      await user.selectOptions(select, 'agent-1');
+      await screen.findByRole('combobox', { name: 'Assigned to' });
+      await user.selectOptions(assignSelect(), 'agent-1');
 
-      await waitFor(() => {
-        expect(patchBody).toEqual({ assignedToId: 'agent-1' });
-      });
+      await waitFor(() => expect(patchBody).toEqual({ assignedToId: 'agent-1' }));
     });
 
     it('sends PATCH with null when Unassigned is selected', async () => {
@@ -212,30 +274,11 @@ describe('TicketDetail page', () => {
       );
 
       renderDetail();
-      const select = await screen.findByRole<HTMLSelectElement>('combobox');
-      await waitFor(() => expect(select.value).toBe('agent-1'));
+      await screen.findByRole('combobox', { name: 'Assigned to' });
+      await waitFor(() => expect(assignSelect().value).toBe('agent-1'));
+      await user.selectOptions(assignSelect(), '');
 
-      await user.selectOptions(select, '');
-
-      await waitFor(() => {
-        expect(patchBody).toEqual({ assignedToId: null });
-      });
-    });
-
-    it('shows "Saving…" while the mutation is in-flight', async () => {
-      const user = userEvent.setup();
-
-      server.use(
-        http.patch('http://localhost:3001/api/tickets/47', async () => {
-          await new Promise(() => {});
-        }),
-      );
-
-      renderDetail();
-      const select = await screen.findByRole('combobox');
-      await user.selectOptions(select, 'agent-1');
-
-      await screen.findByText('Saving…');
+      await waitFor(() => expect(patchBody).toEqual({ assignedToId: null }));
     });
 
     it('does not crash when the PATCH fails', async () => {
@@ -248,12 +291,11 @@ describe('TicketDetail page', () => {
       );
 
       renderDetail();
-      const select = await screen.findByRole('combobox');
-      await user.selectOptions(select, 'agent-1');
+      await screen.findByRole('combobox', { name: 'Assigned to' });
+      await user.selectOptions(assignSelect(), 'agent-1');
 
-      // spinner disappears once mutation settles; no crash or thrown error
       await waitFor(() => expect(screen.queryByText('Saving…')).toBeNull());
-      expect(select).toBeInTheDocument();
+      expect(assignSelect()).toBeInTheDocument();
     });
 
     it('does not crash when PATCH returns 422 for an invalid user', async () => {
@@ -266,11 +308,11 @@ describe('TicketDetail page', () => {
       );
 
       renderDetail();
-      const select = await screen.findByRole('combobox');
-      await user.selectOptions(select, 'agent-1');
+      await screen.findByRole('combobox', { name: 'Assigned to' });
+      await user.selectOptions(assignSelect(), 'agent-1');
 
       await waitFor(() => expect(screen.queryByText('Saving…')).toBeNull());
-      expect(select).toBeInTheDocument();
+      expect(assignSelect()).toBeInTheDocument();
     });
   });
 });
